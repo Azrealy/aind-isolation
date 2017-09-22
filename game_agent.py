@@ -36,13 +36,7 @@ def custom_score(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    if game.is_loser(player):
-        return float("-inf")
-
-    if game.is_winner(player):
-        return float("inf")
-
-    return float(len(game.get_legal_moves(player)))
+    return float(_openboard_dominance(game, player))
 
 def custom_score_2(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -67,7 +61,7 @@ def custom_score_2(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    return _board_dominance_heuristic(game, player)
+    return float(_board_dominance(game, player))
 
 
 def custom_score_3(game, player):
@@ -93,17 +87,17 @@ def custom_score_3(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    return _board_dominance_heuristic(game, player)
+    return float(_multi_open_move(game, player))
 
-def _board_dominance_heuristic(game, player):
+def _board_dominance(game, player):
 
     board = game.to_string()
     board_width = int(board.split('\n\r')[0][-1])
     board_height = int(board.split('\n\r')[-2][0])
 
     opponent = game.get_opponent(player)
-    x_o, y_o = game.get_player_location(opponent)
-    x_p, y_p = game.get_player_location(player)
+    y_o, x_o = game.get_player_location(opponent)
+    y_p, x_p = game.get_player_location(player)
 
     x_dominance = 0
     if x_p > x_o:
@@ -117,8 +111,58 @@ def _board_dominance_heuristic(game, player):
     elif y_p < y_o:
         y_dominance = y_p
 
-    dominance = x_p * y_p
+    dominance = x_dominance * y_dominance
     return dominance
+
+def _openboard_dominance(game, player):
+
+    board = game.to_string()
+    board_width = int(board.split('\n\r')[0][-1])
+    board_height = int(board.split('\n\r')[-2][0])
+
+    opponent = game.get_opponent(player)
+    y_o, x_o = game.get_player_location(opponent)
+    y_p, x_p = game.get_player_location(player)
+
+    blank_spaces = game.get_blank_spaces()
+
+    x_dominant_spaces = []
+    if x_p > x_o:
+        x_dominant_spaces = [s for s in blank_spaces if s[1] > x_p]
+    elif x_p < x_o:
+        x_dominant_spaces = [s for s in blank_spaces if s[1] < x_p]
+
+    y_dominant_spaces = []
+    if y_p > y_o:
+        y_dominant_spaces = [s for s in blank_spaces if s[0] > y_p]
+    elif y_p < y_o:
+        y_dominant_spaces = [s for s in blank_spaces if s[0] < y_p]
+
+    dominant_spaces = len(x_dominant_spaces) + len(y_dominant_spaces)
+    return dominant_spaces
+
+def _multi_open_move(game, player):
+
+    total_player_moves = 0
+    total_opponent_moves = 0
+
+    for m in game.get_legal_moves(player):
+        total_player_moves += _get_open_move_count(game, m)
+    for m in game.get_legal_moves(game.get_opponent(player)):
+        total_opponent_moves += _get_open_move_count(game, m)
+
+    return total_player_moves - total_opponent_moves
+
+def _get_open_move_count(game, location):
+    # stole code from isolation.py, __get_moves
+    r, c = location
+    directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
+                  (1, -2), (1, 2), (2, -1), (2, 1)]
+    valid_moves = [(r + dr, c + dc) for dr, dc in directions
+                   if game.move_is_legal((r + dr, c + dc))]
+    return len(valid_moves)
+
+
 
 class IsolationPlayer:
     """Base class for minimax and alphabeta agents -- this class is never
@@ -246,9 +290,18 @@ class MinimaxPlayer(IsolationPlayer):
         # TODO: finish this function!
 
         # Adopted from lecture solution
-        return max(game.get_legal_moves(),
-                        key=lambda m: self._min_value(game.forecast_move(m), depth))
+        # Weird, this solution does not work successfully for tournament but for upa
+        # return max(game.get_legal_moves(),
+        #                 key=lambda m: self._min_value(game.forecast_move(m), depth))
 
+        best_score = float("-inf")
+        best_move = None
+        for m in game.get_legal_moves():
+            v = self._min_value(game.forecast_move(m), depth)
+            if v > best_score:
+                best_score = v
+                best_move = m
+        return best_move
 
     def _terminal_test(self, game):
 
