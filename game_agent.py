@@ -36,7 +36,9 @@ def custom_score(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    return float(_openboard_dominance(game, player))
+    # return float(_openboard_dominance(game, player))
+    # return float(_improved_multi_open_move(game, player, 1))
+    return float(_multi_open_move(game, game.get_player_location(player), 1))
 
 def custom_score_2(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -61,7 +63,9 @@ def custom_score_2(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    return float(_board_dominance(game, player))
+    # return float(_board_dominance(game, player))
+    # return float(_improved_multi_open_move(game, player, 2))
+    return float(_multi_open_move(game, game.get_player_location(player), 2))
 
 
 def custom_score_3(game, player):
@@ -87,7 +91,10 @@ def custom_score_3(game, player):
         The heuristic value of the current game state to the specified player.
     """
     # TODO: finish this function!
-    return float(_multi_open_move(game, player))
+    # return float(_next_open_move(game, player))
+    # return float(_improved_multi_open_move(game, player, 3))
+    return float(_multi_open_move(game, game.get_player_location(player), 3))
+
 
 def _board_dominance(game, player):
 
@@ -141,26 +148,83 @@ def _openboard_dominance(game, player):
     dominant_spaces = len(x_dominant_spaces) + len(y_dominant_spaces)
     return dominant_spaces
 
-def _multi_open_move(game, player):
+def _next_open_move(game, player):
 
     total_player_moves = 0
     total_opponent_moves = 0
 
     for m in game.get_legal_moves(player):
-        total_player_moves += _get_open_move_count(game, m)
+        total_player_moves += len(_get_valid_moves(game, m))
     for m in game.get_legal_moves(game.get_opponent(player)):
-        total_opponent_moves += _get_open_move_count(game, m)
+        total_opponent_moves += len(_get_valid_moves(game, m))
 
     return total_player_moves - total_opponent_moves
 
-def _get_open_move_count(game, location):
+def _improved_multi_open_move(game, player, depth):
+    player_location = game.get_player_location(player)
+    opponent_location = game.get_player_location(game.get_opponent(player))
+
+    player_moves = _multi_open_move(game, player_location, depth)
+    opponent_moves = _multi_open_move(game, opponent_location, depth)
+
+    return player_moves - opponent_moves
+
+def _improved_multi_open_move_memorized(game, player, depth):
+
+    game_copy = game.copy()
+
+    def _multi_open_move(location, depth):
+
+        if not depth:
+            return 1
+        depth -= 1
+
+        moves_count = 0
+        open_moves = _get_valid_moves(location)
+        for move in open_moves:
+            moves_count += _multi_open_move(move, depth)
+
+        return moves_count
+
+    def _get_valid_moves(location):
+        # stole code from isolation.py, __get_moves
+        r, c = location
+        directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
+                      (1, -2), (1, 2), (2, -1), (2, 1)]
+        valid_moves = [(r + dr, c + dc) for dr, dc in directions
+                       if game_copy.move_is_legal((r + dr, c + dc))]
+        return valid_moves
+
+    player_location = game.get_player_location(player)
+    opponent_location = game.get_player_location(game.get_opponent(player))
+
+    player_moves = _multi_open_move(player_location, depth)
+    opponent_moves = _multi_open_move(opponent_location, depth)
+
+    return player_moves - opponent_moves
+
+
+def _multi_open_move(game, location, depth):
+
+    if not depth:
+        return 1
+    depth -= 1
+
+    moves_count = 0
+    open_moves = _get_valid_moves(game, location)
+    for move in open_moves:
+        moves_count += _multi_open_move(game, move, depth)
+
+    return moves_count
+
+def _get_valid_moves(game, location):
     # stole code from isolation.py, __get_moves
     r, c = location
     directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
                   (1, -2), (1, 2), (2, -1), (2, 1)]
     valid_moves = [(r + dr, c + dc) for dr, dc in directions
                    if game.move_is_legal((r + dr, c + dc))]
-    return len(valid_moves)
+    return valid_moves
 
 
 
