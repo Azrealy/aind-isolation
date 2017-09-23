@@ -38,7 +38,8 @@ def custom_score(game, player):
     # TODO: finish this function!
     # return float(_openboard_dominance(game, player))
     # return float(_improved_multi_open_move(game, player, 1))
-    return float(_multi_open_move(game, game.get_player_location(player), 1))
+    return float(_next_open_move(game, player))
+    # return float(_improved_multi_open_move(game, player, 2, False))
 
 def custom_score_2(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -65,8 +66,8 @@ def custom_score_2(game, player):
     # TODO: finish this function!
     # return float(_board_dominance(game, player))
     # return float(_improved_multi_open_move(game, player, 2))
-    return float(_multi_open_move(game, game.get_player_location(player), 2))
-
+    return float(_improved_multi_open_move(game, player, 3, True))
+    # return float(_board_dominance(game, player))
 
 def custom_score_3(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -93,28 +94,31 @@ def custom_score_3(game, player):
     # TODO: finish this function!
     # return float(_next_open_move(game, player))
     # return float(_improved_multi_open_move(game, player, 3))
-    return float(_multi_open_move(game, game.get_player_location(player), 3))
-
+    # return float(_multi_open_move(game, game.get_player_location(player), 2))
+    return float(_improved_multi_open_move(game, player, 3, False))
 
 def _board_dominance(game, player):
 
-    board = game.to_string()
-    board_width = int(board.split('\n\r')[0][-1])
-    board_height = int(board.split('\n\r')[-2][0])
+    # board = game.to_string()
+    # board_width = int(board.split('\n\r')[0][-1])
+    # board_height = int(board.split('\n\r')[-2][0])
+
+    width = 6
+    height = 6
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
     y_p, x_p = game.get_player_location(player)
 
-    x_dominance = 0
+    x_dominance = width/2
     if x_p > x_o:
-        x_dominance = board_width - x_p
+        x_dominance = width - x_p
     elif x_p < x_o:
         x_dominance = x_p
 
-    y_dominance = 0
+    y_dominance = height/2
     if y_p > y_o:
-        y_dominance = board_height - y_p
+        y_dominance = height - y_p
     elif y_p < y_o:
         y_dominance = y_p
 
@@ -122,10 +126,13 @@ def _board_dominance(game, player):
     return dominance
 
 def _openboard_dominance(game, player):
+    #
+    # board = game.to_string()
+    # board_width = int(board.split('\n\r')[0][-1])
+    # board_height = int(board.split('\n\r')[-2][0])
 
-    board = game.to_string()
-    board_width = int(board.split('\n\r')[0][-1])
-    board_height = int(board.split('\n\r')[-2][0])
+    width = 7
+    height = 7
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
@@ -148,6 +155,10 @@ def _openboard_dominance(game, player):
     dominant_spaces = len(x_dominant_spaces) + len(y_dominant_spaces)
     return dominant_spaces
 
+def _board_dominance_open_move(game, player):
+    return _multi_open_move(game, game.get_player_location(player), 1) \
+           * _board_dominance(game, player)
+
 def _next_open_move(game, player):
 
     total_player_moves = 0
@@ -160,62 +171,40 @@ def _next_open_move(game, player):
 
     return total_player_moves - total_opponent_moves
 
-def _improved_multi_open_move(game, player, depth):
-    player_location = game.get_player_location(player)
-    opponent_location = game.get_player_location(game.get_opponent(player))
-
-    player_moves = _multi_open_move(game, player_location, depth)
-    opponent_moves = _multi_open_move(game, opponent_location, depth)
-
-    return player_moves - opponent_moves
-
-def _improved_multi_open_move_memorized(game, player, depth):
-
-    game_copy = game.copy()
-
-    def _multi_open_move(location, depth):
-
-        if not depth:
-            return 1
-        depth -= 1
-
-        moves_count = 0
-        open_moves = _get_valid_moves(location)
-        for move in open_moves:
-            moves_count += _multi_open_move(move, depth)
-
-        return moves_count
-
-    def _get_valid_moves(location):
-        # stole code from isolation.py, __get_moves
-        r, c = location
-        directions = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
-                      (1, -2), (1, 2), (2, -1), (2, 1)]
-        valid_moves = [(r + dr, c + dc) for dr, dc in directions
-                       if game_copy.move_is_legal((r + dr, c + dc))]
-        return valid_moves
-
-    player_location = game.get_player_location(player)
-    opponent_location = game.get_player_location(game.get_opponent(player))
-
-    player_moves = _multi_open_move(player_location, depth)
-    opponent_moves = _multi_open_move(opponent_location, depth)
-
-    return player_moves - opponent_moves
-
-
-def _multi_open_move(game, location, depth):
+def _multi_open_move(game, location, depth, past_moves=[]):
 
     if not depth:
-        return 1
+        return 0
     depth -= 1
 
     moves_count = 0
     open_moves = _get_valid_moves(game, location)
-    for move in open_moves:
-        moves_count += _multi_open_move(game, move, depth)
+    if past_moves:
+        open_moves = list(set(open_moves) - set(past_moves))
+        past_moves.extend(open_moves)
+        for move in open_moves:
+            moves_count += _multi_open_move(game, move, depth, past_moves)
+            moves_count += _move_value(game, move)
+    else:
+        for move in open_moves:
+            moves_count += _multi_open_move(game, move, depth, past_moves)
+            moves_count += _move_value(game, move)
 
     return moves_count
+
+def _improved_multi_open_move(game, player, depth, memorized=False):
+    player_location = game.get_player_location(player)
+    opponent_location = game.get_player_location(game.get_opponent(player))
+
+    if memorized:
+        player_moves = _multi_open_move(game, player_location, depth, [player_location])
+        opponent_moves = _multi_open_move(game, opponent_location, depth, [opponent_location])
+    else:
+        player_moves = _multi_open_move(game, player_location, depth)
+        opponent_moves = _multi_open_move(game, opponent_location, depth)
+
+    return player_moves - opponent_moves
+
 
 def _get_valid_moves(game, location):
     # stole code from isolation.py, __get_moves
@@ -225,6 +214,46 @@ def _get_valid_moves(game, location):
     valid_moves = [(r + dr, c + dc) for dr, dc in directions
                    if game.move_is_legal((r + dr, c + dc))]
     return valid_moves
+
+def _move_value(game, location):
+    # board = game.to_string()
+    # width = int(board.split('\n\r')[0][-1])
+    # height = int(board.split('\n\r')[-2][0])
+
+    width = 6
+    height = 6
+
+    corner = 1
+    edge = 2
+    near_edge = 4
+    near_center = 8
+    center = 12
+
+    if location == (0, 0) or location == (0, width) \
+            or location == (height, 0) or location == (height, width):
+        return corner
+    elif location[0] == 0 or location[0] == height \
+            or location[1] == 0 or location[1] == width:
+        return edge
+    elif location[0] == 1 or location[0] == height - 1 \
+            or location[1] == 1 or location[1] == width - 1:
+        return near_edge
+    elif location[0] == height/2 and location[1] == width/2:
+        return center
+    elif (height/2 - 1 <= location[0] <= height/2 + 1) \
+            and (width/2 - 1 <= location[1] <= width/2 + 1):
+        return near_center
+
+def _best_heuristic(game, player, depth, memorized=False):
+
+    opponent = game.get_opponent(player)
+    opponent_moves = game.get_legal_moves(opponent)
+    if len(opponent_moves) == 1 and opponent_moves[0] in game.get_legal_moves(player):
+        return float("inf")
+
+    _improved_multi_open_move(game, player, depth, memorized)
+
+
 
 
 
@@ -360,6 +389,7 @@ class MinimaxPlayer(IsolationPlayer):
 
         best_score = float("-inf")
         best_move = None
+
         for m in game.get_legal_moves():
             v = self._min_value(game.forecast_move(m), depth)
             if v > best_score:
@@ -449,18 +479,23 @@ class AlphaBetaPlayer(IsolationPlayer):
 
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
+        legal_moves = game.get_legal_moves()
         best_move = (-1, -1)
+        if legal_moves:
+            best_move = random.choice(legal_moves)
 
         try:
             # The try/except block will automatically catch the exception
             # raised when the timer is about to expire.
             depth = 0
             while True:
+                move = self.alphabeta(game, depth)
+                if move is not None:
+                    best_move = move
                 depth += 1
-                best_move = self.alphabeta(game, depth)
 
         except SearchTimeout:
-            pass  # Handle any actions required after timeout as needed
+            return best_move  # Handle any actions required after timeout as needed
 
         # Return the best move from the last completed search iteration
         return best_move

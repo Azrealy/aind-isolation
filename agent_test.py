@@ -9,31 +9,41 @@ import isolation
 import game_agent
 import sample_players
 import random
+from game_agent import (MinimaxPlayer, AlphaBetaPlayer, custom_score,
+                        custom_score_2, custom_score_3)
+from sample_players import (RandomPlayer, open_move_score,
+                            improved_score, center_score)
 
 from importlib import reload
+import logging
 
+logging.basicConfig(filename='move_history.log',level=logging.DEBUG)
 
 class IsolationTest(unittest.TestCase):
     """Unit tests for isolation agents"""
 
-    def setUp(self):
-        reload(game_agent)
-        self.player1 = game_agent.AlphaBetaPlayer()
-        self.player2 = "Player2"
-        self.game = isolation.Board(self.player1, self.player2)
+    # def setUp(self):
+    #     reload(game_agent)
+    #     self.player1 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
+    #     self.player2 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
+    #     self.game = isolation.Board(self.player1, self.player2)
 
     def test_minimax(self):
-        player = game_agent.MinimaxPlayer()
-        opponent = sample_players.RandomPlayer()
-        game = isolation.Board(player, opponent)
-        move = random.choice(game.get_legal_moves())
-        game.apply_move(move)
-        game.apply_move(move)
-        print(game.get_blank_spaces())
-        winner, history, outcome = game.play()
-        print("\nWinner: {}\nOutcome: {}".format(winner, outcome))
-        print(game.to_string())
-        print("Move history:\n{!s}".format(history))
+        while True:
+            reload(game_agent)
+            self.player1 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
+            self.player2 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
+            self.game = isolation.Board(self.player1, self.player2)
+            move = random.choice(self.game.get_legal_moves())
+            self.game.apply_move(move)
+            move = random.choice(self.game.get_legal_moves())
+            self.game.apply_move(move)
+            winner, history, outcome = self.game.play()
+            print("\nWinner: {}\nOutcome: {}".format(winner, outcome))
+            print(self.game.to_string())
+            print("Move history:\n{!s}".format(history))
+            logging.info(history)
+
 
 
 if __name__ == '__main__':
