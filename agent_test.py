@@ -17,33 +17,27 @@ from sample_players import (RandomPlayer, open_move_score,
 from importlib import reload
 import logging
 
-logging.basicConfig(filename='move_history.log',level=logging.DEBUG)
+logging.basicConfig(filename='move_history1.log',level=logging.DEBUG)
 
 class IsolationTest(unittest.TestCase):
     """Unit tests for isolation agents"""
 
-    # def setUp(self):
-    #     reload(game_agent)
-    #     self.player1 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
-    #     self.player2 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
-    #     self.game = isolation.Board(self.player1, self.player2)
+    def setUp(self):
+        reload(game_agent)
+        self.player1 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
+        self.player2 = game_agent.AlphaBetaPlayer(score_fn=custom_score_3)
+        self.game = isolation.Board(self.player1, self.player2)
 
     def test_minimax(self):
-        while True:
-            reload(game_agent)
-            self.player1 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
-            self.player2 = game_agent.AlphaBetaPlayer(score_fn=improved_score)
-            self.game = isolation.Board(self.player1, self.player2)
-            move = random.choice(self.game.get_legal_moves())
-            self.game.apply_move(move)
-            move = random.choice(self.game.get_legal_moves())
-            self.game.apply_move(move)
-            winner, history, outcome = self.game.play()
-            print("\nWinner: {}\nOutcome: {}".format(winner, outcome))
-            print(self.game.to_string())
-            print("Move history:\n{!s}".format(history))
-            logging.info(history)
-
+        reload(game_agent)
+        move = random.choice(self.game.get_legal_moves())
+        self.game.apply_move(move)
+        move = random.choice(self.game.get_legal_moves())
+        self.game.apply_move(move)
+        winner, history, outcome = self.game.play()
+        print("\nWinner: {}\nOutcome: {}".format(winner, outcome))
+        print(self.game.to_string())
+        print("Move history:\n{!s}".format(history))
 
 
 if __name__ == '__main__':

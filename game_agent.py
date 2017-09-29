@@ -5,7 +5,6 @@ and include the results in your report.
 import random
 import math
 
-
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
     pass
@@ -38,8 +37,9 @@ def custom_score(game, player):
     # TODO: finish this function!
     # return float(_openboard_dominance(game, player))
     # return float(_improved_multi_open_move(game, player, 1))
-    return float(_next_open_move(game, player))
+    return _next_open_move(game, player)
     # return float(_improved_multi_open_move(game, player, 2, False))
+    # return sample_players.improved_score(game, player)
 
 def custom_score_2(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -66,8 +66,11 @@ def custom_score_2(game, player):
     # TODO: finish this function!
     # return float(_board_dominance(game, player))
     # return float(_improved_multi_open_move(game, player, 2))
-    return float(_improved_multi_open_move(game, player, 3, True))
     # return float(_board_dominance(game, player))
+    # return float(_board_dominance(game, player))
+    # return sample_players.improved_score(game, player)
+    return _board_dominance(game, player)
+
 
 def custom_score_3(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -95,30 +98,31 @@ def custom_score_3(game, player):
     # return float(_next_open_move(game, player))
     # return float(_improved_multi_open_move(game, player, 3))
     # return float(_multi_open_move(game, game.get_player_location(player), 2))
-    return float(_improved_multi_open_move(game, player, 3, False))
+    return _openboard_dominance(game, player)
+    # return sample_players.improved_score(game, player)
+
 
 def _board_dominance(game, player):
 
-    # board = game.to_string()
-    # board_width = int(board.split('\n\r')[0][-1])
-    # board_height = int(board.split('\n\r')[-2][0])
+    if game.is_loser(player):
+        return float("-inf")
 
-    width = 6
-    height = 6
+    if game.is_winner(player):
+        return float("inf")
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
     y_p, x_p = game.get_player_location(player)
 
-    x_dominance = width/2
+    x_dominance = (game.width-1)/2
     if x_p > x_o:
-        x_dominance = width - x_p
+        x_dominance = (game.width-1) - x_p
     elif x_p < x_o:
         x_dominance = x_p
 
-    y_dominance = height/2
+    y_dominance = (game.height-1)/2
     if y_p > y_o:
-        y_dominance = height - y_p
+        y_dominance = (game.height-1) - y_p
     elif y_p < y_o:
         y_dominance = y_p
 
@@ -126,13 +130,12 @@ def _board_dominance(game, player):
     return dominance
 
 def _openboard_dominance(game, player):
-    #
-    # board = game.to_string()
-    # board_width = int(board.split('\n\r')[0][-1])
-    # board_height = int(board.split('\n\r')[-2][0])
 
-    width = 7
-    height = 7
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
@@ -161,6 +164,12 @@ def _board_dominance_open_move(game, player):
 
 def _next_open_move(game, player):
 
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
     total_player_moves = 0
     total_opponent_moves = 0
 
@@ -169,26 +178,47 @@ def _next_open_move(game, player):
     for m in game.get_legal_moves(game.get_opponent(player)):
         total_opponent_moves += len(_get_valid_moves(game, m))
 
-    return total_player_moves - total_opponent_moves
+    return float(total_player_moves - total_opponent_moves)
+
+def _next_open_scored_move(game, player):
+
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    total_player_moves = 0
+    total_opponent_moves = 0
+
+    for m in game.get_legal_moves(player):
+        for vm in _get_valid_moves(game, m):
+            total_player_moves += _move_value(game, vm)
+    for m in game.get_legal_moves(game.get_opponent(player)):
+        for vm in _get_valid_moves(game, m):
+            total_opponent_moves += _move_value(game, vm)
+
+    return float(total_player_moves - total_opponent_moves)
 
 def _multi_open_move(game, location, depth, past_moves=[]):
 
-    if not depth:
-        return 0
-    depth -= 1
-
     moves_count = 0
     open_moves = _get_valid_moves(game, location)
+
     if past_moves:
         open_moves = list(set(open_moves) - set(past_moves))
         past_moves.extend(open_moves)
         for move in open_moves:
-            moves_count += _multi_open_move(game, move, depth, past_moves)
             moves_count += _move_value(game, move)
+            depth -= 1
+            if depth > 0:
+                moves_count += _multi_open_move(game, move, depth, past_moves)
     else:
         for move in open_moves:
-            moves_count += _multi_open_move(game, move, depth, past_moves)
             moves_count += _move_value(game, move)
+            depth -= 1
+            if depth > 0:
+                moves_count += _multi_open_move(game, move, depth)
 
     return moves_count
 
@@ -215,34 +245,82 @@ def _get_valid_moves(game, location):
                    if game.move_is_legal((r + dr, c + dc))]
     return valid_moves
 
+def _improved_score(game, player):
+    """The "Improved" evaluation function discussed in lecture that outputs a
+    score equal to the difference in the number of moves available to the
+    two players.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : hashable
+        One of the objects registered by the game object as a valid player.
+        (i.e., `player` should be either game.__player_1__ or
+        game.__player_2__).
+
+    Returns
+    ----------
+    float
+        The heuristic value of the current game state
+    """
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
+    own_moves = game.get_legal_moves(player)
+    own_move_score = 0
+    for m in own_moves:
+        own_move_score += _move_value(game, m)
+
+    opp_moves = game.get_legal_moves(game.get_opponent(player))
+    opp_move_score = 0
+    for m in opp_moves:
+        opp_move_score += _move_value(game, m)
+
+    return float(own_move_score - opp_move_score)
+
+# def _move_value(game, location):
+#     # board = game.to_string()
+#     # width = int(board.split('\n\r')[0][-1])
+#     # height = int(board.split('\n\r')[-2][0])
+#
+#     width = 6
+#     height = 6
+#
+#     corner = -12
+#     corner_edge = -4
+#     mid_edge = -1
+#     center_edge = 0
+#     edge = 2
+#     near_edge = 4
+#     near_center = 8
+#     center = 12
+#
+#     if location == (0, 0) or location == (0, width) \
+#             or location == (height, 0) or location == (height, width):
+#         return corner
+#     elif location[0] == 0 or location[0] == height \
+#             or location[1] == 0 or location[1] == width:
+#         return edge
+#     elif location[0] == 1 or location[0] == height - 1 \
+#             or location[1] == 1 or location[1] == width - 1:
+#         return near_edge
+#     elif location[0] == height/2 and location[1] == width/2:
+#         return center
+#     elif (height/2 - 1 <= location[0] <= height/2 + 1) \
+#             and (width/2 - 1 <= location[1] <= width/2 + 1):
+#         return near_center
+
+
 def _move_value(game, location):
-    # board = game.to_string()
-    # width = int(board.split('\n\r')[0][-1])
-    # height = int(board.split('\n\r')[-2][0])
-
-    width = 6
-    height = 6
-
-    corner = 1
-    edge = 2
-    near_edge = 4
-    near_center = 8
-    center = 12
-
-    if location == (0, 0) or location == (0, width) \
-            or location == (height, 0) or location == (height, width):
-        return corner
-    elif location[0] == 0 or location[0] == height \
-            or location[1] == 0 or location[1] == width:
-        return edge
-    elif location[0] == 1 or location[0] == height - 1 \
-            or location[1] == 1 or location[1] == width - 1:
-        return near_edge
-    elif location[0] == height/2 and location[1] == width/2:
-        return center
-    elif (height/2 - 1 <= location[0] <= height/2 + 1) \
-            and (width/2 - 1 <= location[1] <= width/2 + 1):
-        return near_center
+    board_values = [-11, -4, -2, 0, -1, -5, -11, -5, 0, 2, 4, 3, 0, -4, -1, 2, 7, 8, 8, 3, -1, 0, 3, 9, 9, 9, 4, 0, -2, 2, 7, 8, 8, 2, 0, -4, 1, 2, 4, 3, 0, -4, -12, -5, -1, 0, -1, -4, -12]
+    idx = location[0]*game.width + location[1]
+    return board_values[idx]
 
 def _best_heuristic(game, player, depth, memorized=False):
 
@@ -279,7 +357,7 @@ class IsolationPlayer:
         positive value large enough to allow the function to return before the
         timer expires.
     """
-    def __init__(self, search_depth=3, score_fn=custom_score, timeout=10.):
+    def __init__(self, search_depth=3, score_fn=custom_score, timeout=25.):
         self.search_depth = search_depth
         self.score = score_fn
         self.time_left = None
@@ -325,11 +403,16 @@ class MinimaxPlayer(IsolationPlayer):
         # Initialize the best move so that this function returns something
         # in case the search fails due to timeout
         best_move = (-1, -1)
+        legal_moves = game.get_legal_moves()
+        if len(legal_moves) > 0:
+            best_move = legal_moves[0]
 
         try:
             # The try/except block will automatically catch the exception
             # raised when the timer is about to expire.
-            return self.minimax(game, self.search_depth)
+            move = self.minimax(game, self.search_depth)
+            if move is not None:
+                return move
 
         except SearchTimeout:
             pass  # Handle any actions required after timeout as needed
@@ -481,8 +564,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         # in case the search fails due to timeout
         legal_moves = game.get_legal_moves()
         best_move = (-1, -1)
-        if legal_moves:
-            best_move = random.choice(legal_moves)
+        if len(legal_moves) > 0:
+            best_move = legal_moves[0]
 
         try:
             # The try/except block will automatically catch the exception
@@ -495,7 +578,7 @@ class AlphaBetaPlayer(IsolationPlayer):
                 depth += 1
 
         except SearchTimeout:
-            return best_move  # Handle any actions required after timeout as needed
+            pass  # Handle any actions required after timeout as needed
 
         # Return the best move from the last completed search iteration
         return best_move
@@ -551,19 +634,19 @@ class AlphaBetaPlayer(IsolationPlayer):
 
         # TODO: finish this function!
 
-        v = float("-inf")
-        ab_move = None
+        best_value = float("-inf")
+        best_move = None
         for m in game.get_legal_moves():
             g = game.forecast_move(m)
-            state_value = self._min_value(g, depth, alpha, beta)
-            if state_value > v:
-                v = state_value
-                ab_move = m
-            if v >= beta:
-                return ab_move
+            v = self._min_value(g, depth, alpha, beta)
+            if v > best_value:
+                best_value = v
+                best_move = m
+            if best_value >= beta:
+                return best_move
             alpha = max(v, alpha)
 
-        return ab_move
+        return best_move
 
 
     def _terminal_test(self, game):
@@ -579,7 +662,7 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         depth -= 1
-        if self._terminal_test(game) or not depth:
+        if self._terminal_test(game) or depth <= 0:
             return self.score(game, game.active_player)
 
         v = float("-inf")
@@ -598,7 +681,7 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
 
         depth -= 1
-        if self._terminal_test(game) or not depth:
+        if self._terminal_test(game) or depth <= 0:
             return self.score(game, game.inactive_player)
 
         v = float("inf")
