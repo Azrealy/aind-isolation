@@ -37,6 +37,12 @@ def custom_score(game, player):
     # TODO: finish this function!
     # return float(_openboard_dominance(game, player))
     # return float(_improved_multi_open_move(game, player, 1))
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
     return _next_open_move(game, player)
     # return float(_improved_multi_open_move(game, player, 2, False))
     # return sample_players.improved_score(game, player)
@@ -69,7 +75,16 @@ def custom_score_2(game, player):
     # return float(_board_dominance(game, player))
     # return float(_board_dominance(game, player))
     # return sample_players.improved_score(game, player)
+
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+
     return _board_dominance(game, player)
+
+
 
 
 def custom_score_3(game, player):
@@ -98,17 +113,20 @@ def custom_score_3(game, player):
     # return float(_next_open_move(game, player))
     # return float(_improved_multi_open_move(game, player, 3))
     # return float(_multi_open_move(game, game.get_player_location(player), 2))
-    return _openboard_dominance(game, player)
     # return sample_players.improved_score(game, player)
-
-
-def _board_dominance(game, player):
 
     if game.is_loser(player):
         return float("-inf")
 
     if game.is_winner(player):
         return float("inf")
+
+    return _next_open_scored_move(game, player)
+
+    # _board_dominance_open_move(game, player)
+
+
+def _board_dominance(game, player):
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
@@ -127,15 +145,9 @@ def _board_dominance(game, player):
         y_dominance = y_p
 
     dominance = x_dominance * y_dominance
-    return dominance
+    return float(dominance)
 
 def _openboard_dominance(game, player):
-
-    if game.is_loser(player):
-        return float("-inf")
-
-    if game.is_winner(player):
-        return float("inf")
 
     opponent = game.get_opponent(player)
     y_o, x_o = game.get_player_location(opponent)
@@ -156,19 +168,13 @@ def _openboard_dominance(game, player):
         y_dominant_spaces = [s for s in blank_spaces if s[0] < y_p]
 
     dominant_spaces = len(x_dominant_spaces) + len(y_dominant_spaces)
-    return dominant_spaces
+    return float(dominant_spaces)
 
 def _board_dominance_open_move(game, player):
-    return _multi_open_move(game, game.get_player_location(player), 1) \
-           * _board_dominance(game, player)
+    return float(_multi_open_move(game, game.get_player_location(player), 1)*
+                 _board_dominance(game, player))
 
 def _next_open_move(game, player):
-
-    if game.is_loser(player):
-        return float("-inf")
-
-    if game.is_winner(player):
-        return float("inf")
 
     total_player_moves = 0
     total_opponent_moves = 0
@@ -182,11 +188,6 @@ def _next_open_move(game, player):
 
 def _next_open_scored_move(game, player):
 
-    if game.is_loser(player):
-        return float("-inf")
-
-    if game.is_winner(player):
-        return float("inf")
 
     total_player_moves = 0
     total_opponent_moves = 0
@@ -220,7 +221,7 @@ def _multi_open_move(game, location, depth, past_moves=[]):
             if depth > 0:
                 moves_count += _multi_open_move(game, move, depth)
 
-    return moves_count
+    return float(moves_count)
 
 def _improved_multi_open_move(game, player, depth, memorized=False):
     player_location = game.get_player_location(player)
@@ -233,7 +234,7 @@ def _improved_multi_open_move(game, player, depth, memorized=False):
         player_moves = _multi_open_move(game, player_location, depth)
         opponent_moves = _multi_open_move(game, opponent_location, depth)
 
-    return player_moves - opponent_moves
+    return float(player_moves - opponent_moves)
 
 
 def _get_valid_moves(game, location):
@@ -319,7 +320,7 @@ def _improved_score(game, player):
 
 def _move_value(game, location):
     board_values = [-11, -4, -2, 0, -1, -5, -11, -5, 0, 2, 4, 3, 0, -4, -1, 2, 7, 8, 8, 3, -1, 0, 3, 9, 9, 9, 4, 0, -2, 2, 7, 8, 8, 2, 0, -4, 1, 2, 4, 3, 0, -4, -12, -5, -1, 0, -1, -4, -12]
-    idx = location[0]*game.width + location[1]
+    idx = location[0] + location[1]*game.width
     return board_values[idx]
 
 def _best_heuristic(game, player, depth, memorized=False):
